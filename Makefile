@@ -120,9 +120,9 @@ release:
 	$(SED) -i '' '10s/.*/let version = "$(VERSION)"/' Sources/xcbeautify/Version.swift
 	$(GIT) add Sources/xcbeautify/Version.swift
 	$(GIT) commit -m "Bump version to $(VERSION)"
-	$(GIT) push origin main
+	$(GIT) push nevil artifactbundle
 	$(GIT) tag $(VERSION)
-	$(GIT) push origin $(VERSION)
+	$(GIT) push nevil $(VERSION)
 
 .PHONY: uninstall
 uninstall:
