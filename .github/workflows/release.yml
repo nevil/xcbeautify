@@ -40,7 +40,9 @@ jobs:
         with:
           swift-version: ${{ env.SWIFT_VERSION }}
       - name: Build & Package
-        run: make package
+        run: |
+          sudo xcode-select -s /Application/Xcode_26.2.app
+          make package
       - name: Upload Darwin Universal Asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
