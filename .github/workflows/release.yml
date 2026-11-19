@@ -31,7 +31,7 @@ jobs:
 
   macos:
     name: Release macOS
-    runs-on: macos-latest
+    runs-on: macos-26
     needs: create_release
     steps:
       - name: Checkout
@@ -40,7 +40,9 @@ jobs:
         with:
           swift-version: ${{ env.SWIFT_VERSION }}
       - name: Build & Package
-        run: make package
+        run: |
+          xcode-select -s /Applications/Xcode_26.2.app
+          make package
       - name: Upload Darwin Universal Asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
