@@ -37,6 +37,19 @@ brew install xcbeautify
 mint install cpisciotta/xcbeautify
 ```
 
+### Swift Package Manager artifact bundle
+
+The artifact bundle contains macOS (universal) and Static Linux (x86_64) binaries.
+Put the below in your `Package.swift`:
+
+```swift
+.binaryTarget(
+    name: "xcbeautify",
+    url: "https://github.com/cpisciotta/xcbeautify/releases/download/<version>/xcbeautify-<version>.artifactbundle.zip",
+    checksum: "<checksum>"
+)
+```
+
 ### Build from source
 
 ```bash

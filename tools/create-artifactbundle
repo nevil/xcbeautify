@@ -1,0 +1,127 @@
+#!/bin/bash
+#
+# Creates a SwiftPM artifact bundle (`.artifactbundle.zip`) containing prebuilt
+# xcbeautify executables, suitable for use with `.binaryTarget(url:checksum:)`.
+#
+# Usage:
+#   tools/create-artifactbundle <version> <output-zip> \
+#       [--macos <universal-binary>] \
+#       [--linux-x86_64 <binary>] \
+#       [--linux-arm64 <binary>]
+#
+# At least one binary must be given. Prints the SwiftPM checksum on success.
+
+set -euo pipefail
+
+PRODUCT_NAME=xcbeautify
+
+usage() {
+    sed -n '5,12p' "$0" | sed 's/^# \{0,1\}//'
+    exit 1
+}
+
+[[ $# -ge 2 ]] || usage
+
+VERSION="$1"
+OUTPUT_ZIP="$2"
+shift 2
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "$WORK_DIR"' EXIT
+
+BUNDLE_NAME="$PRODUCT_NAME.artifactbundle"
+BUNDLE_DIR="$WORK_DIR/$BUNDLE_NAME"
+mkdir -p "$BUNDLE_DIR"
+
+VARIANTS=()
+
+# add_variant <binary> <directory-name> <triple>...
+add_variant() {
+    local binary="$1"
+    local directory="$2"
+    shift 2
+
+    if [[ ! -f "$binary" ]]; then
+        echo "error: binary not found: $binary" >&2
+        exit 1
+    fi
+
+    local variant_path="$PRODUCT_NAME-$VERSION-$directory/bin/$PRODUCT_NAME"
+    mkdir -p "$BUNDLE_DIR/$(dirname "$variant_path")"
+    cp "$binary" "$BUNDLE_DIR/$variant_path"
+    chmod +x "$BUNDLE_DIR/$variant_path"
+
+    local triples=""
+    for triple in "$@"; do
+        triples+="${triples:+, }\"$triple\""
+    done
+
+    VARIANTS+=("        {
+          \"path\": \"$variant_path\",
+          \"supportedTriples\": [$triples]
+        }")
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --macos)
+            add_variant "$2" macos x86_64-apple-macosx arm64-apple-macosx
+            shift 2
+            ;;
+        --linux-x86_64)
+            add_variant "$2" linux-x86_64 x86_64-unknown-linux-gnu
+            shift 2
+            ;;
+        --linux-arm64)
+            add_variant "$2" linux-arm64 aarch64-unknown-linux-gnu
+            shift 2
+            ;;
+        *)
+            echo "error: unknown argument: $1" >&2
+            usage
+            ;;
+    esac
+done
+
+if [[ ${#VARIANTS[@]} -eq 0 ]]; then
+    echo "error: at least one binary is required" >&2
+    usage
+fi
+
+JOINED_VARIANTS=""
+for variant in "${VARIANTS[@]}"; do
+    JOINED_VARIANTS+="${JOINED_VARIANTS:+,
+}$variant"
+done
+
+cat > "$BUNDLE_DIR/info.json" <<EOF
+{
+  "schemaVersion": "1.0",
+  "artifacts": {
+    "$PRODUCT_NAME": {
+      "version": "$VERSION",
+      "type": "executable",
+      "variants": [
+$JOINED_VARIANTS
+      ]
+    }
+  }
+}
+EOF
+
+cp "$REPO_ROOT/LICENSE" "$BUNDLE_DIR/LICENSE"
+
+mkdir -p "$(dirname "$OUTPUT_ZIP")"
+OUTPUT_ZIP="$(cd "$(dirname "$OUTPUT_ZIP")" && pwd)/$(basename "$OUTPUT_ZIP")"
+rm -f "$OUTPUT_ZIP"
+(cd "$WORK_DIR" && zip -qry "$OUTPUT_ZIP" "$BUNDLE_NAME")
+
+# SwiftPM's `compute-checksum` is a SHA-256 of the archive.
+if command -v sha256sum > /dev/null; then
+    CHECKSUM="$(sha256sum "$OUTPUT_ZIP" | cut -d ' ' -f 1)"
+else
+    CHECKSUM="$(shasum -a 256 "$OUTPUT_ZIP" | cut -d ' ' -f 1)"
+fi
+
+echo "$CHECKSUM"

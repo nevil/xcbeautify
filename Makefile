@@ -64,6 +64,13 @@ package-darwin-universal:
 
 	$(ZIP) "$(RELEASE_DIR)/$(PRODUCT_NAME).zip" "$(RELEASE_DIR)/$(PRODUCT_NAME)"
 
+# Creates a macOS-only SwiftPM artifact bundle from the universal binary.
+# The release workflow builds a bundle that also includes Linux binaries.
+#.PHONY: package-artifactbundle
+#package-artifactbundle: package-darwin-universal
+#	tools/create-artifactbundle "$(or $(VERSION),$(shell $(SED) -n 's/^let version = "\(.*\)"/\1/p' Sources/xcbeautify/Version.swift))" "release/$(PRODUCT_NAME).artifactbundle.zip" \
+#		--macos "release/$(PRODUCT_NAME)"
+
 .PHONY: package-linux-x86_64
 package-linux-x86_64:
 	$(eval TARGET_TRIPLE := x86_64-unknown-linux-gnu)
